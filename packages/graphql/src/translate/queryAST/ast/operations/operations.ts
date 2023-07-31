@@ -19,7 +19,7 @@
 
 import type Cypher from "@neo4j/cypher-builder";
 import { QueryASTNode } from "../QueryASTNode";
-import type { QueryASTVisitor } from "../../visitors/QueryASTVIsitor";
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 
 export type OperationTranspileOptions = {
     parentNode?: Cypher.Node;

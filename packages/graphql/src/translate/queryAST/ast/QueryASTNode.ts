@@ -20,7 +20,7 @@
 import Cypher from "@neo4j/cypher-builder";
 import type { ConcreteEntity } from "../../../schema-model/entity/ConcreteEntity";
 import { Relationship } from "../../../schema-model/relationship/Relationship";
-import type { QueryASTVisitor } from "../visitors/QueryASTVIsitor";
+import type { QueryASTVisitor } from "../visitors/QueryASTVisitor";
 
 export abstract class QueryASTNode {
     public abstract children: QueryASTNode[];

@@ -19,6 +19,7 @@
 
 import Cypher from "@neo4j/cypher-builder";
 import type { ReadOperation } from "./operations/ReadOperation";
+import { ReadOperationVisitor } from "../visitors/ReadOperationVisitor";
 
 export class QueryAST {
     private operation: ReadOperation;
@@ -28,17 +29,18 @@ export class QueryAST {
     }
 
     public transpile(): Cypher.Clause {
-        // const tree = this.operation.getCypherTree({
-        //     returnVariable: new Cypher.NamedNode("this"),
-        // });
-
-        // return tree.getCypher(
-        //     new CypherTreeContext({
-        //         target: new Cypher.NamedVariable("this"),
-        //     })
-        // );
-        return this.operation.transpile({ returnVariable: new Cypher.NamedVariable("this") });
         // const visitor = new QueryASTVisitor();
-        // visitor.visit(this.operation);
+
+        const visitReadVisitor = new ReadOperationVisitor({
+            readOperation: this.operation,
+            returnVariable: new Cypher.NamedNode("this"),
+        });
+        this.operation.children.forEach((s) => s.accept(visitReadVisitor));
+        return visitReadVisitor.build();
+
+        // this.operation.accept(visitor);
+        // return visitor.build();
+
+        // return this.operation.transpile({ returnVariable: new Cypher.NamedVariable("this") });
     }
 }

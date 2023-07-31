@@ -190,10 +190,9 @@ export class FilterFactory {
         const targetNode = relationship.target as ConcreteEntity; // TODO: accept entities
 
         Object.entries(where).forEach(([key, value]: [string, GraphQLWhereArg | GraphQLWhereArg[]]) => {
-            console.log(key);
             const connectionWhereField = parseConnectionWhereFields(key);
             if (connectionWhereField.fieldName === "edge") {
-                console.log(connectionWhereField.fieldName, value);
+                // console.log(connectionWhereField.fieldName, value);
             }
             if (connectionWhereField.fieldName === "node") {
                 const targetNodeFilters = this.createFilters(targetNode, value as any);

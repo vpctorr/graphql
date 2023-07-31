@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 import type { QueryASTNode } from "../QueryASTNode";
 import type { ConnectionReadOperation } from "../operations/ConnectionReadOperation";
 import type { ReadOperation } from "../operations/ReadOperation";
@@ -24,7 +25,7 @@ import { Field } from "./Field";
 import Cypher from "@neo4j/cypher-builder";
 
 export class OperationField extends Field {
-    private operation: ReadOperation | ConnectionReadOperation;
+    public operation: ReadOperation | ConnectionReadOperation;
 
     private projectionVariable = new Cypher.Variable();
 
@@ -35,6 +36,10 @@ export class OperationField extends Field {
 
     public get children(): QueryASTNode[] {
         return [this.operation];
+    }
+
+    public accept(visitor: QueryASTVisitor): void {
+        visitor.visitOperationField(this);
     }
 
     public getProjectionField(): Record<string, Cypher.Expr> {

@@ -33,13 +33,13 @@ import type { Sort, SortField } from "../sort/Sort";
 
 export class ConnectionReadOperation extends Operation {
     public readonly relationship: Relationship;
-    private directed: boolean;
+    public directed: boolean;
 
     public nodeFields: Field[] = [];
     public edgeFields: Field[] = [];
 
-    private nodeFilters: Filter[] = [];
-    private edgeFilters: Filter[] = [];
+    public nodeFilters: Filter[] = [];
+    public edgeFilters: Filter[] = [];
 
     private pagination: Pagination | undefined;
 

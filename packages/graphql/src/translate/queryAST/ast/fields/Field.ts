@@ -19,7 +19,7 @@
 
 import type Cypher from "@neo4j/cypher-builder";
 import { QueryASTNode } from "../QueryASTNode";
-import type { QueryASTVisitor } from "../../visitors/QueryASTVIsitor";
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 
 export abstract class Field extends QueryASTNode {
     public alias: string;

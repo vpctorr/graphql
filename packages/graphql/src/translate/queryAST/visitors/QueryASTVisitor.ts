@@ -17,18 +17,22 @@
  * limitations under the License.
  */
 
-import type { QueryASTNode } from "../ast/QueryASTNode";
 import type { Field } from "../ast/fields/Field";
 import type { Filter } from "../ast/filters/Filter";
 import type { Operation } from "../ast/operations/operations";
 import type { Pagination } from "../ast/pagination/Pagination";
 import type { Sort } from "../ast/sort/Sort";
+import type { ReadOperation } from "../ast/operations/ReadOperation";
+import type { AttributeField } from "../ast/fields/attribute-fields/AttributeField";
+import type { OperationField } from "../ast/fields/OperationField";
+import type Cypher from "@neo4j/cypher-builder";
+import type { ConnectionReadOperation } from "../ast/operations/ConnectionReadOperation";
 
-export class QueryASTVisitor {
-    public visit(node: QueryASTNode) {
-        node.accept(this);
-        node.children.forEach((s) => this.visit(s));
-    }
+export abstract class QueryASTVisitor {
+    // public visit(node: QueryASTNode) {
+    // node.accept(this);
+    // node.children.forEach((s) => this.visit(s));
+    // }
 
     public visitSort(_element: Sort) {
         console.log("visitSort");
@@ -39,6 +43,22 @@ export class QueryASTVisitor {
         console.log("visitOperation");
         //throw new Error("Method not implemented.");
     }
+
+    public visitReadOperation(_readOperation: ReadOperation, _returnVariable?: Cypher.Variable): void {
+        // const visitReadVisitor = new ReadOperationVisitor({});
+        // readOperation.children.forEach((s) => visitReadVisitor.visit(s));
+        // this.clause = visitReadVisitor.build();
+    }
+
+    public visitConnectionReadOperation(
+        _readOperation: ConnectionReadOperation,
+        _returnVariable?: Cypher.Variable
+    ): void {
+        // const visitReadVisitor = new ReadOperationVisitor({});
+        // readOperation.children.forEach((s) => visitReadVisitor.visit(s));
+        // this.clause = visitReadVisitor.build();
+    }
+
     public visitPagination(_element: Pagination) {
         console.log("visitPagination");
         //throw new Error("Method not implemented.");
@@ -48,6 +68,15 @@ export class QueryASTVisitor {
         console.log("visitFilter");
         //throw new Error("Method not implemented.");
     }
+
+    public visitAttributeField(_element: AttributeField) {
+        //throw new Error("Method not implemented.");
+    }
+
+    public visitOperationField(_element: OperationField) {
+        //throw new Error("Method not implemented.");
+    }
+
     public visitField(_element: Field) {
         console.log("visitField");
         //throw new Error("Method not implemented.");

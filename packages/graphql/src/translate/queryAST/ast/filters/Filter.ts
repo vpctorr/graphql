@@ -18,7 +18,7 @@
  */
 
 import { QueryASTNode } from "../QueryASTNode";
-import type { QueryASTVisitor } from "../../visitors/QueryASTVIsitor";
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 import type Cypher from "@neo4j/cypher-builder";
 
 export type NumericalWhereOperator = "GT" | "GTE" | "LT" | "LTE";

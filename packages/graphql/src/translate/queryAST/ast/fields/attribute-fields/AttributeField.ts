@@ -18,6 +18,7 @@
  */
 
 import type { Attribute } from "../../../../../schema-model/attribute/Attribute";
+import type { QueryASTVisitor } from "../../../visitors/QueryASTVisitor";
 import type { QueryASTNode } from "../../QueryASTNode";
 import { Field } from "../Field";
 import type Cypher from "@neo4j/cypher-builder";
@@ -34,6 +35,10 @@ export class AttributeField extends Field {
         return [];
     }
 
+    public accept(visitor: QueryASTVisitor): void {
+        visitor.visitAttributeField(this);
+    }
+
     protected getCypherExpr(target: Cypher.Variable): Cypher.Expr {
         return target.property(this.attribute.name);
     }
@@ -41,6 +46,13 @@ export class AttributeField extends Field {
     public getProjectionField(variable: Cypher.Variable): string | Record<string, Cypher.Expr> {
         const variableProperty = variable.property(this.attribute.name);
         return this.createAttributeProperty(variableProperty);
+    }
+
+    public getProjectionMap(variable: Cypher.Variable): Record<string, Cypher.Expr> {
+        const variableProperty = variable.property(this.attribute.name);
+        return {
+            [this.alias]: variableProperty,
+        };
     }
 
     private createAttributeProperty(variableProperty: Cypher.Property): string | Record<string, Cypher.Expr> {

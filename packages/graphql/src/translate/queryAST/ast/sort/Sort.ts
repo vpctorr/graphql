@@ -18,7 +18,7 @@
  */
 
 import type Cypher from "@neo4j/cypher-builder";
-import type { QueryASTVisitor } from "../../visitors/QueryASTVIsitor";
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 import { QueryASTNode } from "../QueryASTNode";
 
 export type SortField = [Cypher.Expr, Cypher.Order] | [Cypher.Expr];

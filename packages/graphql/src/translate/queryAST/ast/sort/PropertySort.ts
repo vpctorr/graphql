@@ -20,7 +20,7 @@
 import type Cypher from "@neo4j/cypher-builder";
 import type { Attribute } from "../../../../schema-model/attribute/Attribute";
 import type { QueryASTNode } from "../QueryASTNode";
-import type { QueryASTVisitor } from "../../visitors/QueryASTVIsitor";
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 import type { SortField } from "./Sort";
 import { Sort } from "./Sort";
 

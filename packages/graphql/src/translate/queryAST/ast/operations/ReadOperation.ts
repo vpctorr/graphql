@@ -30,15 +30,16 @@ import type { PropertySort } from "../sort/PropertySort";
 import type { QueryASTNode } from "../QueryASTNode";
 import { Relationship } from "../../../../schema-model/relationship/Relationship";
 import { getRelationshipDirection } from "../../utils/get-relationship-direction";
+import type { QueryASTVisitor } from "../../visitors/QueryASTVisitor";
 
 export class ReadOperation extends Operation {
     public readonly entity: ConcreteEntity | Relationship; // TODO: normal entities
-    protected directed: boolean;
+    public directed: boolean;
 
     public fields: Field[] = [];
-    protected filters: Filter[] = [];
-    protected pagination: Pagination | undefined;
-    protected sortFields: PropertySort[] = [];
+    public filters: Filter[] = [];
+    public pagination: Pagination | undefined;
+    public sortFields: PropertySort[] = [];
 
     public nodeAlias: string | undefined; // This is just to maintain naming with the old way (this), remove after refactor
 
@@ -50,6 +51,10 @@ export class ReadOperation extends Operation {
 
     public get children(): QueryASTNode[] {
         return filterTruthy([...this.fields, ...this.filters, ...this.sortFields, this.pagination]);
+    }
+
+    public accept(v: QueryASTVisitor): void {
+        return v.visitReadOperation(this);
     }
 
     public setFields(fields: Field[]) {
