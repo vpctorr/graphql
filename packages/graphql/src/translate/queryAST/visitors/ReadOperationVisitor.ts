@@ -20,16 +20,17 @@
 import Cypher from "@neo4j/cypher-builder";
 import type { AttributeField } from "../ast/fields/attribute-fields/AttributeField";
 import { QueryASTVisitor } from "./QueryASTVisitor";
-import { ReadOperation } from "../ast/operations/ReadOperation";
+import type { ReadOperation } from "../ast/operations/ReadOperation";
 import { ConcreteEntity } from "../../../schema-model/entity/ConcreteEntity";
 import { createNodeFromEntity, createRelationshipFromEntity } from "../utils/create-node-from-entity";
 import type { OperationField } from "../ast/fields/OperationField";
 import { getRelationshipDirection } from "../utils/get-relationship-direction";
 import type { Filter } from "../ast/filters/Filter";
-import { ConnectionReadOperation } from "../ast/operations/ConnectionReadOperation";
-import { ReadConnectionOperationVisitor } from "./ReadConnectionOperationVisitor";
+import { OperationVisitor } from "./OperationVisitor";
+import type { PropertySort } from "../ast/sort/PropertySort";
+import type { SortField } from "../ast/sort/Sort";
 
-type ReadOperationVisitorContructor = {
+type ReadOperationVisitorConstructor = {
     parentNode?: Cypher.Node;
     readOperation: ReadOperation;
     isNested?: boolean;
@@ -37,17 +38,16 @@ type ReadOperationVisitorContructor = {
 };
 
 export class ReadOperationVisitor extends QueryASTVisitor {
-    private projection: Cypher.MapProjection;
+    private projectionAttributes: (string | Record<string, Cypher.Expr>)[] = [];
     private targetNode: Cypher.Node;
     private predicates: Cypher.Predicate[] = [];
-
     private subqueries: Cypher.Clause[] = [];
-
     private pattern: Cypher.Pattern;
     private isNested: boolean;
     private returnVariable: Cypher.Variable;
+    private sortFields: SortField[] = [];
 
-    constructor(opts: ReadOperationVisitorContructor) {
+    constructor(opts: ReadOperationVisitorConstructor) {
         super();
 
         this.isNested = Boolean(opts.isNested);
@@ -72,12 +72,11 @@ export class ReadOperationVisitor extends QueryASTVisitor {
                 .withDirection(relDirection)
                 .to(this.targetNode);
         }
-        this.projection = new Cypher.MapProjection(this.targetNode);
     }
 
     public visitAttributeField(attributeField: AttributeField) {
         const projectionField = attributeField.getProjectionField(this.targetNode);
-        this.projection.set(projectionField);
+        this.projectionAttributes.push(projectionField);
     }
 
     public visitFilter(filter: Filter): void {
@@ -87,52 +86,25 @@ export class ReadOperationVisitor extends QueryASTVisitor {
         }
     }
 
+    public visitPropertySort(propertySort: PropertySort) {
+        if (this.isNested) {
+            this.sortFields.push(propertySort.getSortField(this.targetNode)); // change for nested
+        } else {
+            this.sortFields.push(propertySort.getSortField(this.targetNode));
+        }
+        const projectionField = propertySort.getProjectionField();
+        this.projectionAttributes.push(projectionField);
+    }
+
     public visitOperationField(operationField: OperationField) {
         const projectionVariable = new Cypher.Variable(); // Same as nested return variable
 
-        this.projection.set({
+        this.projectionAttributes.push({
             [operationField.alias]: projectionVariable,
         });
-
-        operationField.children.forEach((c) => {
-            if (c instanceof ReadOperation) {
-                // This is a hack, should be a new visitor (probably)
-                this.visitReadOperation(c, projectionVariable);
-            } else if (c instanceof ConnectionReadOperation) {
-                this.visitConnectionReadOperation(c, projectionVariable);
-            } else {
-                c.accept(this);
-            }
-        });
-    }
-
-    public visitReadOperation(readOperation: ReadOperation, returnVariable: Cypher.Variable): void {
-        const nestedReadVisitor = new ReadOperationVisitor({
-            parentNode: this.targetNode,
-            readOperation,
-            isNested: true,
-            returnVariable,
-        });
-
-        readOperation.children.forEach((c) => c.accept(nestedReadVisitor));
-
-        this.subqueries.push(nestedReadVisitor.build());
-    }
-
-    public visitConnectionReadOperation(
-        connectionOperation: ConnectionReadOperation,
-        returnVariable: Cypher.Variable
-    ): void {
-        const nestedReadVisitor = new ReadConnectionOperationVisitor({
-            parentNode: this.targetNode,
-            connectionOperation,
-            isNested: true,
-            returnVariable,
-        });
-
-        connectionOperation.children.forEach((c) => c.accept(nestedReadVisitor));
-
-        this.subqueries.push(nestedReadVisitor.build());
+        const operationVisitor = new OperationVisitor(this.targetNode, projectionVariable);
+        operationField.children.forEach((c) => c.accept(operationVisitor));
+        this.subqueries.push(operationVisitor.build());
     }
 
     public build(): Cypher.Clause {
@@ -140,13 +112,21 @@ export class ReadOperationVisitor extends QueryASTVisitor {
         const subqueries = this.subqueries.map((sq) => new Cypher.Call(sq).innerWith(this.targetNode));
 
         let returnClause: Cypher.Clause;
+        const projection = new Cypher.MapProjection(this.targetNode);
+        const projectionEntries = Array.from(new Set(this.projectionAttributes));
+        projectionEntries.forEach((c) => projection.set(c));
         if (this.isNested) {
-            returnClause = new Cypher.With([this.projection, this.targetNode]).return([
-                Cypher.collect(this.targetNode),
-                this.returnVariable, // Same as projection variable
-            ]);
+            const withClause = new Cypher.With([projection, this.targetNode]);
+            returnClause = withClause.return([Cypher.collect(this.targetNode), this.returnVariable]);
+            if (this.sortFields.length > 0) {
+                withClause.orderBy(...this.sortFields);
+            }
         } else {
-            returnClause = new Cypher.Return([this.projection, this.returnVariable]);
+            if (this.sortFields.length > 0) {
+                returnClause = new Cypher.With("*").orderBy(...this.sortFields).return([projection, this.returnVariable]);
+            } else {
+                returnClause = new Cypher.Return([projection, this.returnVariable]);
+            }
         }
 
         return Cypher.concat(matchClause, ...subqueries, returnClause);

@@ -25,8 +25,8 @@ import type { SortField } from "./Sort";
 import { Sort } from "./Sort";
 
 export class PropertySort extends Sort {
-    private attribute: Attribute;
-    private direction: Cypher.Order;
+    public attribute: Attribute;
+    public direction: Cypher.Order;
 
     constructor({ attribute, direction }: { attribute: Attribute; direction: Cypher.Order }) {
         super();
@@ -39,12 +39,12 @@ export class PropertySort extends Sort {
     }
 
     public accept(v: QueryASTVisitor): void {
-        v.visitSort(this);
+        v.visitPropertySort(this);
     }
 
-    public getSortFields(variable: Cypher.Variable | Cypher.Property): SortField[] {
+    public getSortField(variable: Cypher.Variable | Cypher.Property): SortField {
         const nodeProperty = variable.property(this.attribute.name); // getDBName?
-        return [[nodeProperty, this.direction]];
+        return [nodeProperty, this.direction];
     }
 
     public getProjectionField(): string | Record<string, Cypher.Expr> {

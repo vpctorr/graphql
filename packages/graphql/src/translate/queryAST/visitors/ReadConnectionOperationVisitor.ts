@@ -20,16 +20,17 @@
 import Cypher from "@neo4j/cypher-builder";
 import type { AttributeField } from "../ast/fields/attribute-fields/AttributeField";
 import { QueryASTVisitor } from "./QueryASTVisitor";
-import { ReadOperation } from "../ast/operations/ReadOperation";
 import type { ConcreteEntity } from "../../../schema-model/entity/ConcreteEntity";
 import { createNodeFromEntity, createRelationshipFromEntity } from "../utils/create-node-from-entity";
 import type { OperationField } from "../ast/fields/OperationField";
 import { getRelationshipDirection } from "../utils/get-relationship-direction";
 import type { Filter } from "../ast/filters/Filter";
-import { ConnectionReadOperation } from "../ast/operations/ConnectionReadOperation";
-import { ReadOperationVisitor } from "./ReadOperationVisitor";
+import type { ConnectionReadOperation } from "../ast/operations/ConnectionReadOperation";
+import { OperationVisitor } from "./OperationVisitor";
+import type { PropertySort } from "../ast/sort/PropertySort";
+import type { SortField } from "../ast/sort/Sort";
 
-type ReadConnectionOperationVisitorContructor = {
+type ReadConnectionOperationVisitorConstructor = {
     parentNode?: Cypher.Node;
     connectionOperation: ConnectionReadOperation;
     isNested?: boolean;
@@ -41,6 +42,7 @@ export class ReadConnectionOperationVisitor extends QueryASTVisitor {
     private edgeProjection: Cypher.Map;
 
     private targetNode: Cypher.Node;
+    private relVar: Cypher.Relationship;
     private predicates: Cypher.Predicate[] = [];
 
     private subqueries: Cypher.Clause[] = [];
@@ -48,11 +50,13 @@ export class ReadConnectionOperationVisitor extends QueryASTVisitor {
     private pattern: Cypher.Pattern;
     private isNested: boolean;
     private returnVariable: Cypher.Variable;
+    private sortFields: SortField[] = [];
+    private subquerySortFields: SortField[] = [];
 
     private connectionFieldAndFilterRewriterNode: ConnectionFieldAndFilterRewriter;
     private connectionFieldAndFilterRewriterEdge: ConnectionFieldAndFilterRewriter;
 
-    constructor(opts: ReadConnectionOperationVisitorContructor) {
+    constructor(opts: ReadConnectionOperationVisitorConstructor) {
         super();
 
         this.isNested = Boolean(opts.isNested);
@@ -62,27 +66,33 @@ export class ReadConnectionOperationVisitor extends QueryASTVisitor {
 
         if (!opts.parentNode) throw new Error("Parent node missing");
         this.targetNode = createNodeFromEntity(relationship.target as ConcreteEntity);
-        const relVar = createRelationshipFromEntity(relationship);
+        this.relVar = createRelationshipFromEntity(relationship);
 
         const relDirection = getRelationshipDirection(relationship, opts.connectionOperation.directed);
 
         this.pattern = new Cypher.Pattern(opts.parentNode)
             .withoutLabels()
-            .related(relVar)
+            .related(this.relVar)
             .withDirection(relDirection)
             .to(this.targetNode);
         this.nodeProjection = new Cypher.Map();
         this.edgeProjection = new Cypher.Map();
 
+        this.sortFields = [];
+        this.subquerySortFields = [];
         this.connectionFieldAndFilterRewriterNode = new ConnectionFieldAndFilterRewriter(
             this.targetNode,
             this.nodeProjection,
-            this.predicates
+            this.predicates,
+            this.sortFields,
+            this.subquerySortFields
         );
         this.connectionFieldAndFilterRewriterEdge = new ConnectionFieldAndFilterRewriter(
-            relVar,
+            this.relVar,
             this.edgeProjection,
-            this.predicates
+            this.predicates,
+            this.sortFields,
+            this.subquerySortFields
         );
 
         [...opts.connectionOperation.nodeFields, ...opts.connectionOperation.nodeFilters].forEach((n) =>
@@ -91,6 +101,11 @@ export class ReadConnectionOperationVisitor extends QueryASTVisitor {
         [...opts.connectionOperation.edgeFields, ...opts.connectionOperation.edgeFilters].forEach((n) =>
             n.accept(this.connectionFieldAndFilterRewriterEdge)
         );
+
+        opts.connectionOperation.sortFields.forEach((s) => {
+            s.edge.forEach((e) => e.accept(this.connectionFieldAndFilterRewriterEdge));
+            s.node.forEach((n) => n.accept(this.connectionFieldAndFilterRewriterNode));
+        });
 
         if (this.nodeProjection.size === 0) {
             this.nodeProjection.set({
@@ -105,47 +120,12 @@ export class ReadConnectionOperationVisitor extends QueryASTVisitor {
     public visitOperationField(operationField: OperationField) {
         const projectionVariable = new Cypher.Variable(); // Same as nested return variable
 
-        this.edgeProjection.set({
+        this.nodeProjection.set({
             [operationField.alias]: projectionVariable,
         });
-
-        operationField.children.forEach((c) => {
-            if (c instanceof ReadOperation) {
-                // This is a hack, should be a new visitor (probably)
-                this.visitReadOperation(c, projectionVariable);
-            } else if (c instanceof ConnectionReadOperation) {
-                this.visitConnectionReadOperation(c, projectionVariable);
-            } else {
-                c.accept(this);
-            }
-        });
-    }
-
-    public visitConnectionReadOperation(
-        connectionOperation: ConnectionReadOperation,
-        returnVariable: Cypher.Variable
-    ): void {
-        const nestedReadVisitor = new ReadConnectionOperationVisitor({
-            parentNode: this.targetNode,
-            connectionOperation,
-            isNested: true,
-            returnVariable,
-        });
-
-        connectionOperation.children.forEach((c) => c.accept(nestedReadVisitor));
-
-        this.subqueries.push(nestedReadVisitor.build());
-    }
-
-    public visitReadOperation(readOperation: ReadOperation, returnVariable: Cypher.Variable): void {
-        const nestedReadVisitor = new ReadOperationVisitor({
-            parentNode: this.targetNode,
-            readOperation,
-            isNested: true,
-            returnVariable,
-        });
-        readOperation.children.forEach((c) => c.accept(nestedReadVisitor));
-        this.subqueries.push(nestedReadVisitor.build());
+        const operationVisitor = new OperationVisitor(this.targetNode, projectionVariable);
+        operationField.children.forEach((c) => c.accept(operationVisitor));
+        this.subqueries.push(operationVisitor.build());
     }
 
     public build(): Cypher.Clause {
@@ -158,21 +138,48 @@ export class ReadConnectionOperationVisitor extends QueryASTVisitor {
 
         let returnClause: Cypher.Clause;
         if (this.isNested) {
-            returnClause = new Cypher.With([this.edgeProjection, edge])
+            const edgeProjection = new Cypher.With([this.edgeProjection, edge])
                 .with([Cypher.collect(edge), edges])
-                .with(edges, [Cypher.size(edges), totalCount])
-                .return([
+                .with(edges, [Cypher.size(edges), totalCount]);
+            if (this.subquerySortFields.length > 0) {
+                const sortReturnVariable = new Cypher.Variable();
+                const sortSubquery = new Cypher.Call(
+                    new Cypher.Unwind([edges, edge])
+                        .with(edge)
+                        .orderBy(...this.subquerySortFields)
+                        .return([Cypher.collect(edge), sortReturnVariable])
+                )
+                    .innerWith(edges)
+                    .with([sortReturnVariable, edges], totalCount);
+                returnClause = Cypher.concat(
+                    edgeProjection,
+                    sortSubquery,
+                    new Cypher.Return([
+                        new Cypher.Map({
+                            edges,
+                            totalCount,
+                        }),
+                        this.returnVariable,
+                    ])
+                );
+            } else {
+                returnClause = edgeProjection.return([
                     new Cypher.Map({
                         edges,
                         totalCount,
                     }),
                     this.returnVariable,
                 ]);
+            }
         } else {
             returnClause = new Cypher.Return([this.edgeProjection, this.returnVariable]);
         }
+        let sortClause: Cypher.Clause | undefined;
+        if (this.sortFields.length > 0) {
+            sortClause = new Cypher.With(this.relVar, this.targetNode).orderBy(...this.sortFields);
+        }
 
-        return Cypher.concat(matchClause, ...subqueries, returnClause);
+        return Cypher.concat(matchClause, sortClause, ...subqueries, returnClause);
     }
 }
 
@@ -181,12 +188,22 @@ export class ConnectionFieldAndFilterRewriter extends QueryASTVisitor {
     private projectionMap: Cypher.Map;
 
     private predicates: Cypher.Predicate[];
+    private sortFields: SortField[];
+    private subquerySortFields: SortField[];
 
-    constructor(target: Cypher.Node | Cypher.Relationship, projectionMap: Cypher.Map, predicates: Cypher.Predicate[]) {
+    constructor(
+        target: Cypher.Node | Cypher.Relationship,
+        projectionMap: Cypher.Map,
+        predicates: Cypher.Predicate[],
+        sortFields: SortField[],
+        subquerySortFields: SortField[]
+    ) {
         super();
         this.target = target;
         this.projectionMap = projectionMap;
         this.predicates = predicates;
+        this.sortFields = sortFields;
+        this.subquerySortFields = subquerySortFields;
     }
 
     visitFilter(filter: Filter) {
@@ -198,5 +215,14 @@ export class ConnectionFieldAndFilterRewriter extends QueryASTVisitor {
 
     visitAttributeField(attributeField: AttributeField) {
         this.projectionMap.set(attributeField.getProjectionMap(this.target));
+    }
+
+    public visitPropertySort(propertySort: PropertySort) {
+        this.sortFields.push(propertySort.getSortField(this.target));
+        if (this.target instanceof Cypher.Node) {
+            this.subquerySortFields.push(propertySort.getSortField(new Cypher.NamedVariable("edge").property("node")));
+        } else {
+            this.subquerySortFields.push(propertySort.getSortField(new Cypher.NamedVariable("edge")));
+        }
     }
 }

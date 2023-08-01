@@ -41,14 +41,18 @@ export class ConnectionReadOperation extends Operation {
     public nodeFilters: Filter[] = [];
     public edgeFilters: Filter[] = [];
 
-    private pagination: Pagination | undefined;
+    public pagination: Pagination | undefined;
 
-    private sortFields: Array<{ node: Sort[]; edge: Sort[] }> = [];
-
+    public sortFields: Array<{ node: Sort[]; edge: Sort[] }> = [];
+    
     constructor({ relationship, directed }: { relationship: Relationship; directed: boolean }) {
         super();
         this.relationship = relationship;
         this.directed = directed;
+    }
+
+    public accept(visitor: any): any {
+        return visitor.visitConnectionReadOperation(this);
     }
 
     public get children(): QueryASTNode[] {
@@ -199,8 +203,8 @@ export class ConnectionReadOperation extends Operation {
         edgeVar: Cypher.Variable | Cypher.Property
     ): SortField[] {
         return this.sortFields.flatMap(({ node, edge }) => {
-            const nodeFields = node.flatMap((s) => s.getSortFields(nodeVar));
-            const edgeFields = edge.flatMap((s) => s.getSortFields(edgeVar));
+            const nodeFields = node.map((s) => s.getSortField(nodeVar));
+            const edgeFields = edge.map((s) => s.getSortField(edgeVar));
 
             return [...nodeFields, ...edgeFields];
         });

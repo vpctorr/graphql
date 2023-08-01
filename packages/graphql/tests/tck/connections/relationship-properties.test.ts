@@ -185,7 +185,7 @@ describe("Relationship Properties Cypher", () => {
         const query = gql`
             query {
                 movies {
-                    actorsConnection(sort: [{ edge: { year: DESC } }, { node: { name: ASC } }]) {
+                    actorsConnection(sort: [{ edge: { year: DESC }}, { node: { name: ASC } }]) {
                         edges {
                             year
                             node {
@@ -224,6 +224,7 @@ describe("Relationship Properties Cypher", () => {
 
         expect(formatParams(result.params)).toMatchInlineSnapshot(`"{}"`);
     });
+    
     test("Projecting node and relationship properties with sort argument ordered node first", async () => {
         const query = gql`
             query {

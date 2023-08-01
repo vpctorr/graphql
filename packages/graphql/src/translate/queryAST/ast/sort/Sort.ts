@@ -28,5 +28,5 @@ export abstract class Sort extends QueryASTNode {
         v.visitSort(this);
     }
 
-    public abstract getSortFields(variable: Cypher.Variable | Cypher.Property): SortField[];
+    public abstract getSortField(variable: Cypher.Variable | Cypher.Property): SortField;
 }

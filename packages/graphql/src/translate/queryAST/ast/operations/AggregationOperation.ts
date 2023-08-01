@@ -178,7 +178,7 @@ export class AggregationOperation extends Operation {
     }
 
     private addSortToClause(node: Cypher.Variable, clause: Cypher.With | Cypher.Return): void {
-        const orderByFields = this.sortFields.flatMap((f) => f.getSortFields(node));
+        const orderByFields = this.sortFields.map((f) => f.getSortField(node));
         const pagination = this.pagination ? this.pagination.getPagination() : undefined;
         clause.orderBy(...orderByFields);
 

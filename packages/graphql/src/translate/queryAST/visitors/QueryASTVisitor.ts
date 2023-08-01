@@ -27,6 +27,7 @@ import type { AttributeField } from "../ast/fields/attribute-fields/AttributeFie
 import type { OperationField } from "../ast/fields/OperationField";
 import type Cypher from "@neo4j/cypher-builder";
 import type { ConnectionReadOperation } from "../ast/operations/ConnectionReadOperation";
+import type { PropertySort } from "../ast/sort/PropertySort";
 
 export abstract class QueryASTVisitor {
     // public visit(node: QueryASTNode) {
@@ -39,12 +40,17 @@ export abstract class QueryASTVisitor {
         //throw new Error("Method not implemented.");
     }
 
+    public visitPropertySort(_element: PropertySort) {
+        console.log("visitPropertySort");
+        //throw new Error("Method not implemented.");
+    }
+
     public visitOperation(_element: Operation) {
         console.log("visitOperation");
         //throw new Error("Method not implemented.");
     }
 
-    public visitReadOperation(_readOperation: ReadOperation, _returnVariable?: Cypher.Variable): void {
+    public visitReadOperation(_readOperation: ReadOperation): void {
         // const visitReadVisitor = new ReadOperationVisitor({});
         // readOperation.children.forEach((s) => visitReadVisitor.visit(s));
         // this.clause = visitReadVisitor.build();
