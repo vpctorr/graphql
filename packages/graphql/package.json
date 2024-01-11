@@ -12,8 +12,10 @@
         "url": "https://github.com/neo4j/graphql/issues"
     },
     "homepage": "https://github.com/neo4j/graphql/tree/dev/packages/graphql",
+    "type": "module",
     "exports": "./dist/index.js",
     "main": "./dist/index.js",
+    "module": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "files": [
         "dist/**/*.ts",

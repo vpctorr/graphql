@@ -1,9 +1,18 @@
 {
-    "extends": "@tsconfig/node16/tsconfig.json",
     "compilerOptions": {
+        "lib": ["es2021"],
+        "module": "ES2020",
+        "target": "es2021",
+    
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "Bundler",
+        
         "composite": true,
-        "declarationMap": true,
-        "sourceMap": true,
+        "declarationMap": false,
+        "sourceMap": false,
         "resolveJsonModule": true, // Required for package.json import in @neo4j/graphql
         "experimentalDecorators": true,
         "noImplicitAny": false // TODO: Refactor so that this can be true for monorepo
