@@ -1,0 +1,53 @@
+/*
+ * Copyright (c) "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
+ *
+ * This file is part of Neo4j.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import Cypher from "@neo4j/cypher-builder";
+import { Operation } from "./operations";
+/**
+ * This operation is used to return top-level and nested @cypher fields that returns a scalar value.
+ **/
+export class CypherScalarOperation extends Operation {
+    constructor(selection, cypherAttributeField, isNested) {
+        super();
+        this.selection = selection;
+        this.cypherAttributeField = cypherAttributeField;
+        this.isNested = isNested;
+    }
+    getChildren() {
+        return [this.selection];
+    }
+    transpile(context) {
+        const { selection: matchClause, nestedContext } = this.selection.apply(context);
+        let retProj;
+        if (this.isNested && this.cypherAttributeField.typeHelper.isList()) {
+            retProj = [Cypher.collect(nestedContext.returnVariable), context.returnVariable];
+        }
+        else {
+            retProj = [nestedContext.returnVariable, context.returnVariable];
+        }
+        const ret = new Cypher.Return(retProj);
+        const scope = context.getTargetScope();
+        // by setting the return variable of this operation in the attribute scope, we can avoid duplicate the same cypher resolution for sorting and projection purposes
+        scope.set(this.cypherAttributeField.name, context.returnVariable);
+        const clause = Cypher.concat(matchClause, ret);
+        return {
+            clauses: [clause],
+            projectionExpr: context.returnVariable,
+        };
+    }
+}

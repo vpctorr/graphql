@@ -1,0 +1,13 @@
+import type { ValueOf } from "../utils/value-of";
+export declare const LIBRARY_DIRECTIVES: readonly [...("id" | "relayId" | "cypher" | "coalesce" | "customResolver" | "selectable" | "settable" | "default" | "fulltext" | "plural" | "populatedBy" | "private" | "limit" | "timestamp" | "unique" | "mutation" | "query" | "subscription" | "jwt" | "filterable" | "jwtClaim" | "authorization" | "authentication" | "key" | "subscriptionsAuthorization")[], "alias", "relationship", "relationshipProperties", "declareRelationship", "node", "shareable"];
+export declare const SCHEMA_CONFIGURATION_FIELD_DIRECTIVES: readonly ["filterable", "selectable", "settable"];
+export declare const FIELD_DIRECTIVES: readonly ["alias", "authentication", "authorization", "coalesce", "customResolver", "cypher", "default", "id", "jwtClaim", "populatedBy", "relationship", "relayId", "subscriptionsAuthorization", "timestamp", "unique", "declareRelationship", "filterable", "selectable", "settable"];
+export type FieldDirective = ValueOf<typeof FIELD_DIRECTIVES>;
+export declare const SCHEMA_CONFIGURATION_OBJECT_DIRECTIVES: readonly ["query", "mutation", "subscription"];
+declare const OBJECT_DIRECTIVES: readonly ["authentication", "authorization", "subscriptionsAuthorization", "plural", "limit", "fulltext", "node", "jwt", "shareable", "deprecated", "relationshipProperties", "query", "mutation", "subscription"];
+export type ObjectDirective = ValueOf<typeof OBJECT_DIRECTIVES>;
+declare const INTERFACE_DIRECTIVES: readonly ["query", "plural", "limit"];
+export type InterfaceDirective = ValueOf<typeof INTERFACE_DIRECTIVES>;
+declare const UNION_DIRECTIVES: readonly ["query", "plural"];
+export type UnionDirective = ValueOf<typeof UNION_DIRECTIVES>;
+export {};

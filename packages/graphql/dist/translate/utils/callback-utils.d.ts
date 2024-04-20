@@ -1,0 +1,5 @@
+import type { CallbackBucket } from "../../classes/CallbackBucket";
+import type { PrimitiveField } from "../../types";
+import Cypher from "@neo4j/cypher-builder";
+export declare const addCallbackAndSetParam: (field: PrimitiveField, varName: string, parent: any, callbackBucket: CallbackBucket, strs: string[], operation: "CREATE" | "UPDATE") => void;
+export declare const addCallbackAndSetParamCypher: (field: PrimitiveField, variable: Cypher.Variable, parent: any, callbackBucket: CallbackBucket, operation: "CREATE" | "UPDATE", node: Cypher.Node) => [Cypher.Property, Cypher.Raw] | [];
